@@ -1,0 +1,1341 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}{\f1\fnil\fcharset1 Segoe UI Symbol;}}
+{\colortbl ;\red0\green0\blue255;}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 <!DOCTYPE html>\par
+<html>\par
+<head>\par
+\tab <title>Maintenance - Moota.co</title>\par
+\tab <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Permanent+Marker">\par
+\tab <style type="text/css">\par
+\tab\tab body \{\par
+\tab\tab\tab background-color: black;\par
+\tab\tab\}\par
+\par
+\tab\tab #pacman \{\par
+\tab\tab\tab height: 470px;\par
+\tab\tab\tab width: 382px;\par
+\tab\tab\tab border-radius: 5px;\par
+\tab\tab\tab margin: 20px auto;\par
+\tab\tab\}\par
+\par
+\tab\tab #shim \{\par
+\tab\tab\tab font-family: 'Permanent Marker', cursive;\par
+\tab\tab\tab position: absolute;\par
+\tab\tab\tab visibility: hidden\par
+\tab\tab\}\par
+\par
+\tab\tab h1 \{\par
+\tab\tab\tab font-family: 'Permanent Marker', cursive;\par
+\tab\tab\tab text-align: center;\par
+\tab\tab\tab color: yellow;\par
+\tab\tab\}\par
+\par
+\tab\tab body \{\par
+\tab\tab\tab width: 342px;\par
+\tab\tab\tab margin: 0px auto;\par
+\tab\tab\tab font-family: sans-serif;\par
+\tab\tab\}\par
+\par
+\tab\tab p \{\par
+\tab\tab\tab text-decoration: none;\par
+\tab\tab\tab color: #0000FF;\par
+\tab\tab\}\par
+\tab </style>\par
+</head>\par
+<body>\par
+\tab <div id="shim">shim for font face</div>\par
+\tab <h1>Maintenance</h1>\par
+\tab <p style="text-align:center;">Sedang migrasi server dan upgrade engine 23:00 s/d 05:00. Mohon doanya :)</p>\par
+\tab <div id="pacman"></div>\par
+\par
+\tab <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>\par
+\tab <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>\par
+\tab <script type="text/javascript">\par
+\tab\tab /*jslint browser: true, undef: true, eqeqeq: true, nomen: true, white: true */\par
+/*global window: false, document: false */\par
+\par
+/*\par
+ * fix looped audio\par
+ * add fruits + levels\par
+ * fix what happens when a ghost is eaten (should go back to base)\par
+ * do proper ghost mechanics (blinky/wimpy etc)\par
+ */\par
+\par
+var NONE        = 4,\par
+    UP          = 3,\par
+    LEFT        = 2,\par
+    DOWN        = 1,\par
+    RIGHT       = 11,\par
+    WAITING     = 5,\par
+    PAUSE       = 6,\par
+    PLAYING     = 7,\par
+    COUNTDOWN   = 8,\par
+    EATEN_PAUSE = 9,\par
+    DYING       = 10,\par
+    Pacman      = \{\};\par
+\par
+Pacman.FPS = 30;\par
+\par
+Pacman.Ghost = function (game, map, colour) \{\par
+\par
+    var position  = null,\par
+        direction = null,\par
+        eatable   = null,\par
+        eaten     = null,\par
+        due       = null;\par
+    \par
+    function getNewCoord(dir, current) \{ \par
+        \par
+        var speed  = isVunerable() ? 1 : isHidden() ? 4 : 2,\par
+            xSpeed = (dir === LEFT && -speed || dir === RIGHT && speed || 0),\par
+            ySpeed = (dir === DOWN && speed || dir === UP && -speed || 0);\par
+    \par
+        return \{\par
+            "x": addBounded(current.x, xSpeed),\par
+            "y": addBounded(current.y, ySpeed)\par
+        \};\par
+    \};\par
+\par
+    /* Collision detection(walls) is done when a ghost lands on an\par
+     * exact block, make sure they dont skip over it \par
+     */\par
+    function addBounded(x1, x2) \{ \par
+        var rem    = x1 % 10, \par
+            result = rem + x2;\par
+        if (rem !== 0 && result > 10) \{\par
+            return x1 + (10 - rem);\par
+        \} else if(rem > 0 && result < 0) \{ \par
+            return x1 - rem;\par
+        \}\par
+        return x1 + x2;\par
+    \};\par
+    \par
+    function isVunerable() \{ \par
+        return eatable !== null;\par
+    \};\par
+    \par
+    function isDangerous() \{\par
+        return eaten === null;\par
+    \};\par
+\par
+    function isHidden() \{ \par
+        return eatable === null && eaten !== null;\par
+    \};\par
+    \par
+    function getRandomDirection() \{\par
+        var moves = (direction === LEFT || direction === RIGHT) \par
+            ? [UP, DOWN] : [LEFT, RIGHT];\par
+        return moves[Math.floor(Math.random() * 2)];\par
+    \};\par
+    \par
+    function reset() \{\par
+        eaten = null;\par
+        eatable = null;\par
+        position = \{"x": 90, "y": 80\};\par
+        direction = getRandomDirection();\par
+        due = getRandomDirection();\par
+    \};\par
+    \par
+    function onWholeSquare(x) \{\par
+        return x % 10 === 0;\par
+    \};\par
+    \par
+    function oppositeDirection(dir) \{ \par
+        return dir === LEFT && RIGHT ||\par
+            dir === RIGHT && LEFT ||\par
+            dir === UP && DOWN || UP;\par
+    \};\par
+\par
+    function makeEatable() \{\par
+        direction = oppositeDirection(direction);\par
+        eatable = game.getTick();\par
+    \};\par
+\par
+    function eat() \{ \par
+        eatable = null;\par
+        eaten = game.getTick();\par
+    \};\par
+\par
+    function pointToCoord(x) \{\par
+        return Math.round(x / 10);\par
+    \};\par
+\par
+    function nextSquare(x, dir) \{\par
+        var rem = x % 10;\par
+        if (rem === 0) \{ \par
+            return x; \par
+        \} else if (dir === RIGHT || dir === DOWN) \{ \par
+            return x + (10 - rem);\par
+        \} else \{\par
+            return x - rem;\par
+        \}\par
+    \};\par
+\par
+    function onGridSquare(pos) \{\par
+        return onWholeSquare(pos.y) && onWholeSquare(pos.x);\par
+    \};\par
+\par
+    function secondsAgo(tick) \{ \par
+        return (game.getTick() - tick) / Pacman.FPS;\par
+    \};\par
+\par
+    function getColour() \{ \par
+        if (eatable) \{ \par
+            if (secondsAgo(eatable) > 5) \{ \par
+                return game.getTick() % 20 > 10 ? "#FFFFFF" : "#0000BB";\par
+            \} else \{ \par
+                return "#0000BB";\par
+            \}\par
+        \} else if(eaten) \{ \par
+            return "#222";\par
+        \} \par
+        return colour;\par
+    \};\par
+\par
+    function draw(ctx) \{\par
+  \par
+        var s    = map.blockSize, \par
+            top  = (position.y/10) * s,\par
+            left = (position.x/10) * s;\par
+    \par
+        if (eatable && secondsAgo(eatable) > 8) \{\par
+            eatable = null;\par
+        \}\par
+        \par
+        if (eaten && secondsAgo(eaten) > 3) \{ \par
+            eaten = null;\par
+        \}\par
+        \par
+        var tl = left + s;\par
+        var base = top + s - 3;\par
+        var inc = s / 10;\par
+\par
+        var high = game.getTick() % 10 > 5 ? 3  : -3;\par
+        var low  = game.getTick() % 10 > 5 ? -3 : 3;\par
+\par
+        ctx.fillStyle = getColour();\par
+        ctx.beginPath();\par
+\par
+        ctx.moveTo(left, base);\par
+\par
+        ctx.quadraticCurveTo(left, top, left + (s/2),  top);\par
+        ctx.quadraticCurveTo(left + s, top, left+s,  base);\par
+        \par
+        // Wavy things at the bottom\par
+        ctx.quadraticCurveTo(tl-(inc*1), base+high, tl - (inc * 2),  base);\par
+        ctx.quadraticCurveTo(tl-(inc*3), base+low, tl - (inc * 4),  base);\par
+        ctx.quadraticCurveTo(tl-(inc*5), base+high, tl - (inc * 6),  base);\par
+        ctx.quadraticCurveTo(tl-(inc*7), base+low, tl - (inc * 8),  base); \par
+        ctx.quadraticCurveTo(tl-(inc*9), base+high, tl - (inc * 10), base); \par
+\par
+        ctx.closePath();\par
+        ctx.fill();\par
+\par
+        ctx.beginPath();\par
+        ctx.fillStyle = "#FFF";\par
+        ctx.arc(left + 6,top + 6, s / 6, 0, 300, false);\par
+        ctx.arc((left + s) - 6,top + 6, s / 6, 0, 300, false);\par
+        ctx.closePath();\par
+        ctx.fill();\par
+\par
+        var f = s / 12;\par
+        var off = \{\};\par
+        off[RIGHT] = [f, 0];\par
+        off[LEFT]  = [-f, 0];\par
+        off[UP]    = [0, -f];\par
+        off[DOWN]  = [0, f];\par
+\par
+        ctx.beginPath();\par
+        ctx.fillStyle = "#000";\par
+        ctx.arc(left+6+off[direction][0], top+6+off[direction][1], \par
+                s / 15, 0, 300, false);\par
+        ctx.arc((left+s)-6+off[direction][0], top+6+off[direction][1], \par
+                s / 15, 0, 300, false);\par
+        ctx.closePath();\par
+        ctx.fill();\par
+\par
+    \};\par
+\par
+    function pane(pos) \{\par
+\par
+        if (pos.y === 100 && pos.x >= 190 && direction === RIGHT) \{\par
+            return \{"y": 100, "x": -10\};\par
+        \}\par
+        \par
+        if (pos.y === 100 && pos.x <= -10 && direction === LEFT) \{\par
+            return position = \{"y": 100, "x": 190\};\par
+        \}\par
+\par
+        return false;\par
+    \};\par
+    \par
+    function move(ctx) \{\par
+        \par
+        var oldPos = position,\par
+            onGrid = onGridSquare(position),\par
+            npos   = null;\par
+        \par
+        if (due !== direction) \{\par
+            \par
+            npos = getNewCoord(due, position);\par
+            \par
+            if (onGrid &&\par
+                map.isFloorSpace(\{\par
+                    "y":pointToCoord(nextSquare(npos.y, due)),\par
+                    "x":pointToCoord(nextSquare(npos.x, due))\})) \{\par
+                direction = due;\par
+            \} else \{\par
+                npos = null;\par
+            \}\par
+        \}\par
+        \par
+        if (npos === null) \{\par
+            npos = getNewCoord(direction, position);\par
+        \}\par
+        \par
+        if (onGrid &&\par
+            map.isWallSpace(\{\par
+                "y" : pointToCoord(nextSquare(npos.y, direction)),\par
+                "x" : pointToCoord(nextSquare(npos.x, direction))\par
+            \})) \{\par
+            \par
+            due = getRandomDirection();            \par
+            return move(ctx);\par
+        \}\par
+\par
+        position = npos;        \par
+        \par
+        var tmp = pane(position);\par
+        if (tmp) \{ \par
+            position = tmp;\par
+        \}\par
+        \par
+        due = getRandomDirection();\par
+        \par
+        return \{\par
+            "new" : position,\par
+            "old" : oldPos\par
+        \};\par
+    \};\par
+    \par
+    return \{\par
+        "eat"         : eat,\par
+        "isVunerable" : isVunerable,\par
+        "isDangerous" : isDangerous,\par
+        "makeEatable" : makeEatable,\par
+        "reset"       : reset,\par
+        "move"        : move,\par
+        "draw"        : draw\par
+    \};\par
+\};\par
+\par
+Pacman.User = function (game, map) \{\par
+    \par
+    var position  = null,\par
+        direction = null,\par
+        eaten     = null,\par
+        due       = null, \par
+        lives     = null,\par
+        score     = 5,\par
+        keyMap    = \{\};\par
+    \par
+    keyMap[KEY.ARROW_LEFT]  = LEFT;\par
+    keyMap[KEY.ARROW_UP]    = UP;\par
+    keyMap[KEY.ARROW_RIGHT] = RIGHT;\par
+    keyMap[KEY.ARROW_DOWN]  = DOWN;\par
+\par
+    function addScore(nScore) \{ \par
+        score += nScore;\par
+        if (score >= 10000 && score - nScore < 10000) \{ \par
+            lives += 1;\par
+        \}\par
+    \};\par
+\par
+    function theScore() \{ \par
+        return score;\par
+    \};\par
+\par
+    function loseLife() \{ \par
+        lives -= 1;\par
+    \};\par
+\par
+    function getLives() \{\par
+        return lives;\par
+    \};\par
+\par
+    function initUser() \{\par
+        score = 0;\par
+        lives = 3;\par
+        newLevel();\par
+    \}\par
+    \par
+    function newLevel() \{\par
+        resetPosition();\par
+        eaten = 0;\par
+    \};\par
+    \par
+    function resetPosition() \{\par
+        position = \{"x": 90, "y": 120\};\par
+        direction = LEFT;\par
+        due = LEFT;\par
+    \};\par
+    \par
+    function reset() \{\par
+        initUser();\par
+        resetPosition();\par
+    \};        \par
+    \par
+    function keyDown(e) \{\par
+        if (typeof keyMap[e.keyCode] !== "undefined") \{ \par
+            due = keyMap[e.keyCode];\par
+            e.preventDefault();\par
+            e.stopPropagation();\par
+            return false;\par
+        \}\par
+        return true;\par
+\tab\};\par
+\par
+    function getNewCoord(dir, current) \{   \par
+        return \{\par
+            "x": current.x + (dir === LEFT && -2 || dir === RIGHT && 2 || 0),\par
+            "y": current.y + (dir === DOWN && 2 || dir === UP    && -2 || 0)\par
+        \};\par
+    \};\par
+\par
+    function onWholeSquare(x) \{\par
+        return x % 10 === 0;\par
+    \};\par
+\par
+    function pointToCoord(x) \{\par
+        return Math.round(x/10);\par
+    \};\par
+    \par
+    function nextSquare(x, dir) \{\par
+        var rem = x % 10;\par
+        if (rem === 0) \{ \par
+            return x; \par
+        \} else if (dir === RIGHT || dir === DOWN) \{ \par
+            return x + (10 - rem);\par
+        \} else \{\par
+            return x - rem;\par
+        \}\par
+    \};\par
+\par
+    function next(pos, dir) \{\par
+        return \{\par
+            "y" : pointToCoord(nextSquare(pos.y, dir)),\par
+            "x" : pointToCoord(nextSquare(pos.x, dir)),\par
+        \};                               \par
+    \};\par
+\par
+    function onGridSquare(pos) \{\par
+        return onWholeSquare(pos.y) && onWholeSquare(pos.x);\par
+    \};\par
+\par
+    function isOnSamePlane(due, dir) \{ \par
+        return ((due === LEFT || due === RIGHT) && \par
+                (dir === LEFT || dir === RIGHT)) || \par
+            ((due === UP || due === DOWN) && \par
+             (dir === UP || dir === DOWN));\par
+    \};\par
+\par
+    function move(ctx) \{\par
+        \par
+        var npos        = null, \par
+            nextWhole   = null, \par
+            oldPosition = position,\par
+            block       = null;\par
+        \par
+        if (due !== direction) \{\par
+            npos = getNewCoord(due, position);\par
+            \par
+            if (isOnSamePlane(due, direction) || \par
+                (onGridSquare(position) && \par
+                 map.isFloorSpace(next(npos, due)))) \{\par
+                direction = due;\par
+            \} else \{\par
+                npos = null;\par
+            \}\par
+        \}\par
+\par
+        if (npos === null) \{\par
+            npos = getNewCoord(direction, position);\par
+        \}\par
+        \par
+        if (onGridSquare(position) && map.isWallSpace(next(npos, direction))) \{\par
+            direction = NONE;\par
+        \}\par
+\par
+        if (direction === NONE) \{\par
+            return \{"new" : position, "old" : position\};\par
+        \}\par
+        \par
+        if (npos.y === 100 && npos.x >= 190 && direction === RIGHT) \{\par
+            npos = \{"y": 100, "x": -10\};\par
+        \}\par
+        \par
+        if (npos.y === 100 && npos.x <= -12 && direction === LEFT) \{\par
+            npos = \{"y": 100, "x": 190\};\par
+        \}\par
+        \par
+        position = npos;        \par
+        nextWhole = next(position, direction);\par
+        \par
+        block = map.block(nextWhole);        \par
+        \par
+        if ((isMidSquare(position.y) || isMidSquare(position.x)) &&\par
+            block === Pacman.BISCUIT || block === Pacman.PILL) \{\par
+            \par
+            map.setBlock(nextWhole, Pacman.EMPTY);           \par
+            addScore((block === Pacman.BISCUIT) ? 10 : 50);\par
+            eaten += 1;\par
+            \par
+            if (eaten === 182) \{\par
+                game.completedLevel();\par
+            \}\par
+            \par
+            if (block === Pacman.PILL) \{ \par
+                game.eatenPill();\par
+            \}\par
+        \}   \par
+                \par
+        return \{\par
+            "new" : position,\par
+            "old" : oldPosition\par
+        \};\par
+    \};\par
+\par
+    function isMidSquare(x) \{ \par
+        var rem = x % 10;\par
+        return rem > 3 || rem < 7;\par
+    \};\par
+\par
+    function calcAngle(dir, pos) \{ \par
+        if (dir == RIGHT && (pos.x % 10 < 5)) \{\par
+            return \{"start":0.25, "end":1.75, "direction": false\};\par
+        \} else if (dir === DOWN && (pos.y % 10 < 5)) \{ \par
+            return \{"start":0.75, "end":2.25, "direction": false\};\par
+        \} else if (dir === UP && (pos.y % 10 < 5)) \{ \par
+            return \{"start":1.25, "end":1.75, "direction": true\};\par
+        \} else if (dir === LEFT && (pos.x % 10 < 5)) \{             \par
+            return \{"start":0.75, "end":1.25, "direction": true\};\par
+        \}\par
+        return \{"start":0, "end":2, "direction": false\};\par
+    \};\par
+\par
+    function drawDead(ctx, amount) \{ \par
+\par
+        var size = map.blockSize, \par
+            half = size / 2;\par
+\par
+        if (amount >= 1) \{ \par
+            return;\par
+        \}\par
+\par
+        ctx.fillStyle = "#FFFF00";\par
+        ctx.beginPath();        \par
+        ctx.moveTo(((position.x/10) * size) + half, \par
+                   ((position.y/10) * size) + half);\par
+        \par
+        ctx.arc(((position.x/10) * size) + half, \par
+                ((position.y/10) * size) + half,\par
+                half, 0, Math.PI * 2 * amount, true); \par
+        \par
+        ctx.fill();    \par
+    \};\par
+\par
+    function draw(ctx) \{ \par
+\par
+        var s     = map.blockSize, \par
+            angle = calcAngle(direction, position);\par
+\par
+        ctx.fillStyle = "#FFFF00";\par
+\par
+        ctx.beginPath();        \par
+\par
+        ctx.moveTo(((position.x/10) * s) + s / 2,\par
+                   ((position.y/10) * s) + s / 2);\par
+        \par
+        ctx.arc(((position.x/10) * s) + s / 2,\par
+                ((position.y/10) * s) + s / 2,\par
+                s / 2, Math.PI * angle.start, \par
+                Math.PI * angle.end, angle.direction); \par
+        \par
+        ctx.fill();    \par
+    \};\par
+    \par
+    initUser();\par
+\par
+    return \{\par
+        "draw"          : draw,\par
+        "drawDead"      : drawDead,\par
+        "loseLife"      : loseLife,\par
+        "getLives"      : getLives,\par
+        "score"         : score,\par
+        "addScore"      : addScore,\par
+        "theScore"      : theScore,\par
+        "keyDown"       : keyDown,\par
+        "move"          : move,\par
+        "newLevel"      : newLevel,\par
+        "reset"         : reset,\par
+        "resetPosition" : resetPosition\par
+    \};\par
+\};\par
+\par
+Pacman.Map = function (size) \{\par
+    \par
+    var height    = null, \par
+        width     = null, \par
+        blockSize = size,\par
+        pillSize  = 0,\par
+        map       = null;\par
+    \par
+    function withinBounds(y, x) \{\par
+        return y >= 0 && y < height && x >= 0 && x < width;\par
+    \}\par
+    \par
+    function isWall(pos) \{\par
+        return withinBounds(pos.y, pos.x) && map[pos.y][pos.x] === Pacman.WALL;\par
+    \}\par
+    \par
+    function isFloorSpace(pos) \{\par
+        if (!withinBounds(pos.y, pos.x)) \{\par
+            return false;\par
+        \}\par
+        var peice = map[pos.y][pos.x];\par
+        return peice === Pacman.EMPTY || \par
+            peice === Pacman.BISCUIT ||\par
+            peice === Pacman.PILL;\par
+    \}\par
+    \par
+    function drawWall(ctx) \{\par
+\par
+        var i, j, p, line;\par
+        \par
+        ctx.strokeStyle = "#0000FF";\par
+        ctx.lineWidth   = 5;\par
+        ctx.lineCap     = "round";\par
+        \par
+        for (i = 0; i < Pacman.WALLS.length; i += 1) \{\par
+            line = Pacman.WALLS[i];\par
+            ctx.beginPath();\par
+\par
+            for (j = 0; j < line.length; j += 1) \{\par
+\par
+                p = line[j];\par
+                \par
+                if (p.move) \{\par
+                    ctx.moveTo(p.move[0] * blockSize, p.move[1] * blockSize);\par
+                \} else if (p.line) \{\par
+                    ctx.lineTo(p.line[0] * blockSize, p.line[1] * blockSize);\par
+                \} else if (p.curve) \{\par
+                    ctx.quadraticCurveTo(p.curve[0] * blockSize, \par
+                                         p.curve[1] * blockSize,\par
+                                         p.curve[2] * blockSize, \par
+                                         p.curve[3] * blockSize);   \par
+                \}\par
+            \}\par
+            ctx.stroke();\par
+        \}\par
+    \}\par
+    \par
+    function reset() \{       \par
+        map    = Pacman.MAP.clone();\par
+        height = map.length;\par
+        width  = map[0].length;        \par
+    \};\par
+\par
+    function block(pos) \{\par
+        return map[pos.y][pos.x];\par
+    \};\par
+    \par
+    function setBlock(pos, type) \{\par
+        map[pos.y][pos.x] = type;\par
+    \};\par
+\par
+    function drawPills(ctx) \{ \par
+\par
+        if (++pillSize > 30) \{\par
+            pillSize = 0;\par
+        \}\par
+        \par
+        for (i = 0; i < height; i += 1) \{\par
+\tab\tab     for (j = 0; j < width; j += 1) \{\par
+                if (map[i][j] === Pacman.PILL) \{\par
+                    ctx.beginPath();\par
+\par
+                    ctx.fillStyle = "#000";\par
+\tab\tab             ctx.fillRect((j * blockSize), (i * blockSize), \par
+                                 blockSize, blockSize);\par
+\par
+                    ctx.fillStyle = "#FFF";\par
+                    ctx.arc((j * blockSize) + blockSize / 2,\par
+                            (i * blockSize) + blockSize / 2,\par
+                            Math.abs(5 - (pillSize/3)), \par
+                            0, \par
+                            Math.PI * 2, false); \par
+                    ctx.fill();\par
+                    ctx.closePath();\par
+                \}\par
+\tab\tab     \}\par
+\tab     \}\par
+    \};\par
+    \par
+    function draw(ctx) \{\par
+        \par
+        var i, j, size = blockSize;\par
+\par
+        ctx.fillStyle = "#000";\par
+\tab     ctx.fillRect(0, 0, width * size, height * size);\par
+\par
+        drawWall(ctx);\par
+        \par
+        for (i = 0; i < height; i += 1) \{\par
+\tab\tab     for (j = 0; j < width; j += 1) \{\par
+\tab\tab\tab     drawBlock(i, j, ctx);\par
+\tab\tab     \}\par
+\tab     \}\par
+    \};\par
+    \par
+    function drawBlock(y, x, ctx) \{\par
+\par
+        var layout = map[y][x];\par
+\par
+        if (layout === Pacman.PILL) \{\par
+            return;\par
+        \}\par
+\par
+        ctx.beginPath();\par
+        \par
+        if (layout === Pacman.EMPTY || layout === Pacman.BLOCK || \par
+            layout === Pacman.BISCUIT) \{\par
+            \par
+            ctx.fillStyle = "#000";\par
+\tab\tab     ctx.fillRect((x * blockSize), (y * blockSize), \par
+                         blockSize, blockSize);\par
+\par
+            if (layout === Pacman.BISCUIT) \{\par
+                ctx.fillStyle = "#FFF";\par
+\tab\tab         ctx.fillRect((x * blockSize) + (blockSize / 2.5), \par
+                             (y * blockSize) + (blockSize / 2.5), \par
+                             blockSize / 6, blockSize / 6);\par
+\tab         \}\par
+        \}\par
+        ctx.closePath();\tab  \par
+    \};\par
+\par
+    reset();\par
+    \par
+    return \{\par
+        "draw"         : draw,\par
+        "drawBlock"    : drawBlock,\par
+        "drawPills"    : drawPills,\par
+        "block"        : block,\par
+        "setBlock"     : setBlock,\par
+        "reset"        : reset,\par
+        "isWallSpace"  : isWall,\par
+        "isFloorSpace" : isFloorSpace,\par
+        "height"       : height,\par
+        "width"        : width,\par
+        "blockSize"    : blockSize\par
+    \};\par
+\};\par
+\par
+Pacman.Audio = function(game) \{\par
+    \par
+    var files          = [], \par
+        endEvents      = [],\par
+        progressEvents = [],\par
+        playing        = [];\par
+    \par
+    function load(name, path, cb) \{ \par
+\par
+        var f = files[name] = document.createElement("audio");\par
+\par
+        progressEvents[name] = function(event) \{ progress(event, name, cb); \};\par
+        \par
+        f.addEventListener("canplaythrough", progressEvents[name], true);\par
+        f.setAttribute("preload", "true");\par
+        f.setAttribute("autobuffer", "true");\par
+        f.setAttribute("src", path);\par
+        f.pause();        \par
+    \};\par
+\par
+    function progress(event, name, callback) \{ \par
+        if (event.loaded === event.total && typeof callback === "function") \{\par
+            callback();\par
+            files[name].removeEventListener("canplaythrough", \par
+                                            progressEvents[name], true);\par
+        \}\par
+    \};\par
+\par
+    function disableSound() \{\par
+        for (var i = 0; i < playing.length; i++) \{\par
+            files[playing[i]].pause();\par
+            files[playing[i]].currentTime = 0;\par
+        \}\par
+        playing = [];\par
+    \};\par
+\par
+    function ended(name) \{ \par
+\par
+        var i, tmp = [], found = false;\par
+\par
+        files[name].removeEventListener("ended", endEvents[name], true);\par
+\par
+        for (i = 0; i < playing.length; i++) \{\par
+            if (!found && playing[i]) \{ \par
+                found = true;\par
+            \} else \{ \par
+                tmp.push(playing[i]);\par
+            \}\par
+        \}\par
+        playing = tmp;\par
+    \};\par
+\par
+    function play(name) \{ \par
+        if (!game.soundDisabled()) \{\par
+            endEvents[name] = function() \{ ended(name); \};\par
+            playing.push(name);\par
+            files[name].addEventListener("ended", endEvents[name], true);\par
+            files[name].play();\par
+        \}\par
+    \};\par
+\par
+    function pause() \{ \par
+        for (var i = 0; i < playing.length; i++) \{\par
+            files[playing[i]].pause();\par
+        \}\par
+    \};\par
+    \par
+    function resume() \{ \par
+        for (var i = 0; i < playing.length; i++) \{\par
+            files[playing[i]].play();\par
+        \}        \par
+    \};\par
+    \par
+    return \{\par
+        "disableSound" : disableSound,\par
+        "load"         : load,\par
+        "play"         : play,\par
+        "pause"        : pause,\par
+        "resume"       : resume\par
+    \};\par
+\};\par
+\par
+var PACMAN = (function () \{\par
+\par
+    var state        = WAITING,\par
+        audio        = null,\par
+        ghosts       = [],\par
+        ghostSpecs   = ["#00FFDE", "#FF0000", "#FFB8DE", "#FFB847"],\par
+        eatenCount   = 0,\par
+        level        = 0,\par
+        tick         = 0,\par
+        ghostPos, userPos, \par
+        stateChanged = true,\par
+        timerStart   = null,\par
+        lastTime     = 0,\par
+        ctx          = null,\par
+        timer        = null,\par
+        map          = null,\par
+        user         = null,\par
+        stored       = null;\par
+\par
+    function getTick() \{ \par
+        return tick;\par
+    \};\par
+\par
+    function drawScore(text, position) \{\par
+        ctx.fillStyle = "#FFFFFF";\par
+        ctx.font      = "12px BDCartoonShoutRegular";\par
+        ctx.fillText(text, \par
+                     (position["new"]["x"] / 10) * map.blockSize, \par
+                     ((position["new"]["y"] + 5) / 10) * map.blockSize);\par
+    \}\par
+    \par
+    function dialog(text) \{\par
+        ctx.fillStyle = "#FFFF00";\par
+        ctx.font      = "18px Calibri";\par
+        var width = ctx.measureText(text).width,\par
+            x     = ((map.width * map.blockSize) - width) / 2;        \par
+        ctx.fillText(text, x, (map.height * 10) + 8);\par
+    \}\par
+\par
+    function soundDisabled() \{\par
+        return localStorage["soundDisabled"] === "true";\par
+    \};\par
+    \par
+    function startLevel() \{        \par
+        user.resetPosition();\par
+        for (var i = 0; i < ghosts.length; i += 1) \{ \par
+            ghosts[i].reset();\par
+        \}\par
+        audio.play("start");\par
+        timerStart = tick;\par
+        setState(COUNTDOWN);\par
+    \}    \par
+\par
+    function startNewGame() \{\par
+        setState(WAITING);\par
+        level = 1;\par
+        user.reset();\par
+        map.reset();\par
+        map.draw(ctx);\par
+        startLevel();\par
+    \}\par
+\par
+    function keyDown(e) \{\par
+        if (e.keyCode === KEY.N) \{\par
+            startNewGame();\par
+        \} else if (e.keyCode === KEY.S) \{\par
+            audio.disableSound();\par
+            localStorage["soundDisabled"] = !soundDisabled();\par
+        \} else if (e.keyCode === KEY.P && state === PAUSE) \{\par
+            audio.resume();\par
+            map.draw(ctx);\par
+            setState(stored);\par
+        \} else if (e.keyCode === KEY.P) \{\par
+            stored = state;\par
+            setState(PAUSE);\par
+            audio.pause();\par
+            map.draw(ctx);\par
+            dialog("Paused");\par
+        \} else if (state !== PAUSE) \{   \par
+            return user.keyDown(e);\par
+        \}\par
+        return true;\par
+    \}    \par
+\par
+    function loseLife() \{        \par
+        setState(WAITING);\par
+        user.loseLife();\par
+        if (user.getLives() > 0) \{\par
+            startLevel();\par
+        \}\par
+    \}\par
+\par
+    function setState(nState) \{ \par
+        state = nState;\par
+        stateChanged = true;\par
+    \};\par
+    \par
+    function collided(user, ghost) \{\par
+        return (Math.sqrt(Math.pow(ghost.x - user.x, 2) + \par
+                          Math.pow(ghost.y - user.y, 2))) < 10;\par
+    \};\par
+\par
+    function drawFooter() \{\par
+        \par
+        var topLeft  = (map.height * map.blockSize),\par
+            textBase = topLeft + 17;\par
+        \par
+        ctx.fillStyle = "#000000";\par
+        ctx.fillRect(0, topLeft, (map.width * map.blockSize), 30);\par
+        \par
+        ctx.fillStyle = "#FFFF00";\par
+\par
+        for (var i = 0, len = user.getLives(); i < len; i++) \{\par
+            ctx.fillStyle = "#FFFF00";\par
+            ctx.beginPath();\par
+            ctx.moveTo(150 + (25 * i) + map.blockSize / 2,\par
+                       (topLeft+1) + map.blockSize / 2);\par
+            \par
+            ctx.arc(150 + (25 * i) + map.blockSize / 2,\par
+                    (topLeft+1) + map.blockSize / 2,\par
+                    map.blockSize / 2, Math.PI * 0.25, Math.PI * 1.75, false);\par
+            ctx.fill();\par
+        \}\par
+\par
+        ctx.fillStyle = !soundDisabled() ? "#00FF00" : "#FF0000";\par
+        ctx.font = "bold 16px sans-serif";\par
+        //ctx.fillText("\f1\u9834?\f0 ", 10, textBase);\par
+        ctx.fillText("s", 10, textBase);\par
+\par
+        ctx.fillStyle = "#FFFF00";\par
+        ctx.font      = "14px Calibri";\par
+        ctx.fillText("Score: " + user.theScore(), 30, textBase);\par
+        ctx.fillText("Level: " + level, 260, textBase);\par
+    \}\par
+\par
+    function redrawBlock(pos) \{\par
+        map.drawBlock(Math.floor(pos.y/10), Math.floor(pos.x/10), ctx);\par
+        map.drawBlock(Math.ceil(pos.y/10), Math.ceil(pos.x/10), ctx);\par
+    \}\par
+\par
+    function mainDraw() \{ \par
+\par
+        var diff, u, i, len, nScore;\par
+        \par
+        ghostPos = [];\par
+\par
+        for (i = 0, len = ghosts.length; i < len; i += 1) \{\par
+            ghostPos.push(ghosts[i].move(ctx));\par
+        \}\par
+        u = user.move(ctx);\par
+        \par
+        for (i = 0, len = ghosts.length; i < len; i += 1) \{\par
+            redrawBlock(ghostPos[i].old);\par
+        \}\par
+        redrawBlock(u.old);\par
+        \par
+        for (i = 0, len = ghosts.length; i < len; i += 1) \{\par
+            ghosts[i].draw(ctx);\par
+        \}                     \par
+        user.draw(ctx);\par
+        \par
+        userPos = u["new"];\par
+        \par
+        for (i = 0, len = ghosts.length; i < len; i += 1) \{\par
+            if (collided(userPos, ghostPos[i]["new"])) \{\par
+                if (ghosts[i].isVunerable()) \{ \par
+                    audio.play("eatghost");\par
+                    ghosts[i].eat();\par
+                    eatenCount += 1;\par
+                    nScore = eatenCount * 50;\par
+                    drawScore(nScore, ghostPos[i]);\par
+                    user.addScore(nScore);                    \par
+                    setState(EATEN_PAUSE);\par
+                    timerStart = tick;\par
+                \} else if (ghosts[i].isDangerous()) \{\par
+                    audio.play("die");\par
+                    setState(DYING);\par
+                    timerStart = tick;\par
+                \}\par
+            \}\par
+        \}                             \par
+    \};\par
+\par
+    function mainLoop() \{\par
+\par
+        var diff;\par
+\par
+        if (state !== PAUSE) \{ \par
+            ++tick;\par
+        \}\par
+\par
+        map.drawPills(ctx);\par
+\par
+        if (state === PLAYING) \{\par
+            mainDraw();\par
+        \} else if (state === WAITING && stateChanged) \{            \par
+            stateChanged = false;\par
+            map.draw(ctx);\par
+            dialog("Press N to start a New game");            \par
+        \} else if (state === EATEN_PAUSE && \par
+                   (tick - timerStart) > (Pacman.FPS / 3)) \{\par
+            map.draw(ctx);\par
+            setState(PLAYING);\par
+        \} else if (state === DYING) \{\par
+            if (tick - timerStart > (Pacman.FPS * 2)) \{ \par
+                loseLife();\par
+            \} else \{ \par
+                redrawBlock(userPos);\par
+                for (i = 0, len = ghosts.length; i < len; i += 1) \{\par
+                    redrawBlock(ghostPos[i].old);\par
+                    ghostPos.push(ghosts[i].draw(ctx));\par
+                \}                                   \par
+                user.drawDead(ctx, (tick - timerStart) / (Pacman.FPS * 2));\par
+            \}\par
+        \} else if (state === COUNTDOWN) \{\par
+            \par
+            diff = 5 + Math.floor((timerStart - tick) / Pacman.FPS);\par
+            \par
+            if (diff === 0) \{\par
+                map.draw(ctx);\par
+                setState(PLAYING);\par
+            \} else \{\par
+                if (diff !== lastTime) \{ \par
+                    lastTime = diff;\par
+                    map.draw(ctx);\par
+                    dialog("Starting in: " + diff);\par
+                \}\par
+            \}\par
+        \} \par
+\par
+        drawFooter();\par
+    \}\par
+\par
+    function eatenPill() \{\par
+        audio.play("eatpill");\par
+        timerStart = tick;\par
+        eatenCount = 0;\par
+        for (i = 0; i < ghosts.length; i += 1) \{\par
+            ghosts[i].makeEatable(ctx);\par
+        \}        \par
+    \};\par
+    \par
+    function completedLevel() \{\par
+        setState(WAITING);\par
+        level += 1;\par
+        map.reset();\par
+        user.newLevel();\par
+        startLevel();\par
+    \};\par
+\par
+    function keyPress(e) \{ \par
+        if (state !== WAITING && state !== PAUSE) \{ \par
+            e.preventDefault();\par
+            e.stopPropagation();\par
+        \}\par
+    \};\par
+    \par
+    function init(wrapper, root) \{\par
+        \par
+        var i, len, ghost,\par
+            blockSize = wrapper.offsetWidth / 19,\par
+            canvas    = document.createElement("canvas");\par
+        \par
+        canvas.setAttribute("width", (blockSize * 19) + "px");\par
+        canvas.setAttribute("height", (blockSize * 22) + 30 + "px");\par
+\par
+        wrapper.appendChild(canvas);\par
+\par
+        ctx  = canvas.getContext('2d');\par
+\par
+        audio = new Pacman.Audio(\{"soundDisabled":soundDisabled\});\par
+        map   = new Pacman.Map(blockSize);\par
+        user  = new Pacman.User(\{ \par
+            "completedLevel" : completedLevel, \par
+            "eatenPill"      : eatenPill \par
+        \}, map);\par
+\par
+        for (i = 0, len = ghostSpecs.length; i < len; i += 1) \{\par
+            ghost = new Pacman.Ghost(\{"getTick":getTick\}, map, ghostSpecs[i]);\par
+            ghosts.push(ghost);\par
+        \}\par
+        \par
+        map.draw(ctx);\par
+        dialog("Loading ...");\par
+\par
+        var extension = Modernizr.audio.ogg ? 'ogg' : 'mp3';\par
+\par
+        var audio_files = [\par
+            ["start", root + "audio/opening_song." + extension],\par
+            ["die", root + "audio/die." + extension],\par
+            ["eatghost", root + "audio/eatghost." + extension],\par
+            ["eatpill", root + "audio/eatpill." + extension],\par
+            ["eating", root + "audio/eating.short." + extension],\par
+            ["eating2", root + "audio/eating.short." + extension]\par
+        ];\par
+\par
+        load(audio_files, function() \{ loaded(); \});\par
+    \};\par
+\par
+    function load(arr, callback) \{ \par
+        \par
+        if (arr.length === 0) \{ \par
+            callback();\par
+        \} else \{ \par
+            var x = arr.pop();\par
+            audio.load(x[0], x[1], function() \{ load(arr, callback); \});\par
+        \}\par
+    \};\par
+        \par
+    function loaded() \{\par
+\par
+        dialog("Press N to Start");\par
+        \par
+        document.addEventListener("keydown", keyDown, true);\par
+        document.addEventListener("keypress", keyPress, true); \par
+        \par
+        timer = window.setInterval(mainLoop, 1000 / Pacman.FPS);\par
+    \};\par
+    \par
+    return \{\par
+        "init" : init\par
+    \};\par
+    \par
+\}());\par
+\par
+/* Human readable keyCode index */\par
+var KEY = \{'BACKSPACE': 8, 'TAB': 9, 'NUM_PAD_CLEAR': 12, 'ENTER': 13, 'SHIFT': 16, 'CTRL': 17, 'ALT': 18, 'PAUSE': 19, 'CAPS_LOCK': 20, 'ESCAPE': 27, 'SPACEBAR': 32, 'PAGE_UP': 33, 'PAGE_DOWN': 34, 'END': 35, 'HOME': 36, 'ARROW_LEFT': 37, 'ARROW_UP': 38, 'ARROW_RIGHT': 39, 'ARROW_DOWN': 40, 'PRINT_SCREEN': 44, 'INSERT': 45, 'DELETE': 46, 'SEMICOLON': 59, 'WINDOWS_LEFT': 91, 'WINDOWS_RIGHT': 92, 'SELECT': 93, 'NUM_PAD_ASTERISK': 106, 'NUM_PAD_PLUS_SIGN': 107, 'NUM_PAD_HYPHEN-MINUS': 109, 'NUM_PAD_FULL_STOP': 110, 'NUM_PAD_SOLIDUS': 111, 'NUM_LOCK': 144, 'SCROLL_LOCK': 145, 'SEMICOLON': 186, 'EQUALS_SIGN': 187, 'COMMA': 188, 'HYPHEN-MINUS': 189, 'FULL_STOP': 190, 'SOLIDUS': 191, 'GRAVE_ACCENT': 192, 'LEFT_SQUARE_BRACKET': 219, 'REVERSE_SOLIDUS': 220, 'RIGHT_SQUARE_BRACKET': 221, 'APOSTROPHE': 222\};\par
+\par
+(function () \{\par
+\tab /* 0 - 9 */\par
+\tab for (var i = 48; i <= 57; i++) \{\par
+        KEY['' + (i - 48)] = i;\par
+\tab\}\par
+\tab /* A - Z */\par
+\tab for (i = 65; i <= 90; i++) \{\par
+        KEY['' + String.fromCharCode(i)] = i;\par
+\tab\}\par
+\tab /* NUM_PAD_0 - NUM_PAD_9 */\par
+\tab for (i = 96; i <= 105; i++) \{\par
+        KEY['NUM_PAD_' + (i - 96)] = i;\par
+\tab\}\par
+\tab /* F1 - F12 */\par
+\tab for (i = 112; i <= 123; i++) \{\par
+        KEY['F' + (i - 112 + 1)] = i;\par
+\tab\}\par
+\})();\par
+\par
+Pacman.WALL    = 0;\par
+Pacman.BISCUIT = 1;\par
+Pacman.EMPTY   = 2;\par
+Pacman.BLOCK   = 3;\par
+Pacman.PILL    = 4;\par
+\par
+Pacman.MAP = [\par
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\par
+\tab [0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],\par
+\tab [0, 4, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 4, 0],\par
+\tab [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],\par
+\tab [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],\par
+\tab [0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0],\par
+\tab [0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],\par
+\tab [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],\par
+\tab [2, 2, 2, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 2, 2, 2],\par
+\tab [0, 0, 0, 0, 1, 0, 1, 0, 0, 3, 0, 0, 1, 0, 1, 0, 0, 0, 0],\par
+\tab [2, 2, 2, 2, 1, 1, 1, 0, 3, 3, 3, 0, 1, 1, 1, 2, 2, 2, 2],\par
+\tab [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],\par
+\tab [2, 2, 2, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 2, 2, 2],\par
+\tab [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],\par
+\tab [0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],\par
+\tab [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],\par
+\tab [0, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 4, 0],\par
+\tab [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0],\par
+\tab [0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],\par
+\tab [0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],\par
+\tab [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],\par
+\tab [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]\par
+];\par
+\par
+Pacman.WALLS = [\par
+    \par
+    [\{"move": [0, 9.5]\}, \{"line": [3, 9.5]\},\par
+     \{"curve": [3.5, 9.5, 3.5, 9]\}, \{"line": [3.5, 8]\},\par
+     \{"curve": [3.5, 7.5, 3, 7.5]\}, \{"line": [1, 7.5]\},\par
+     \{"curve": [0.5, 7.5, 0.5, 7]\}, \{"line": [0.5, 1]\},\par
+     \{"curve": [0.5, 0.5, 1, 0.5]\}, \{"line": [9, 0.5]\},\par
+     \{"curve": [9.5, 0.5, 9.5, 1]\}, \{"line": [9.5, 3.5]\}],\par
+\par
+    [\{"move": [9.5, 1]\},\par
+     \{"curve": [9.5, 0.5, 10, 0.5]\}, \{"line": [18, 0.5]\},\par
+     \{"curve": [18.5, 0.5, 18.5, 1]\}, \{"line": [18.5, 7]\},\par
+     \{"curve": [18.5, 7.5, 18, 7.5]\}, \{"line": [16, 7.5]\},\par
+     \{"curve": [15.5, 7.5, 15.5, 8]\}, \{"line": [15.5, 9]\},\par
+     \{"curve": [15.5, 9.5, 16, 9.5]\}, \{"line": [19, 9.5]\}],\par
+\par
+    [\{"move": [2.5, 5.5]\}, \{"line": [3.5, 5.5]\}],\par
+\par
+    [\{"move": [3, 2.5]\},\par
+     \{"curve": [3.5, 2.5, 3.5, 3]\},\par
+     \{"curve": [3.5, 3.5, 3, 3.5]\},\par
+     \{"curve": [2.5, 3.5, 2.5, 3]\},\par
+     \{"curve": [2.5, 2.5, 3, 2.5]\}],\par
+\par
+    [\{"move": [15.5, 5.5]\}, \{"line": [16.5, 5.5]\}],\par
+\par
+    [\{"move": [16, 2.5]\}, \{"curve": [16.5, 2.5, 16.5, 3]\},\par
+     \{"curve": [16.5, 3.5, 16, 3.5]\}, \{"curve": [15.5, 3.5, 15.5, 3]\},\par
+     \{"curve": [15.5, 2.5, 16, 2.5]\}],\par
+\par
+    [\{"move": [6, 2.5]\}, \{"line": [7, 2.5]\}, \{"curve": [7.5, 2.5, 7.5, 3]\},\par
+     \{"curve": [7.5, 3.5, 7, 3.5]\}, \{"line": [6, 3.5]\},\par
+     \{"curve": [5.5, 3.5, 5.5, 3]\}, \{"curve": [5.5, 2.5, 6, 2.5]\}],\par
+\par
+    [\{"move": [12, 2.5]\}, \{"line": [13, 2.5]\}, \{"curve": [13.5, 2.5, 13.5, 3]\},\par
+     \{"curve": [13.5, 3.5, 13, 3.5]\}, \{"line": [12, 3.5]\},\par
+     \{"curve": [11.5, 3.5, 11.5, 3]\}, \{"curve": [11.5, 2.5, 12, 2.5]\}],\par
+\par
+    [\{"move": [7.5, 5.5]\}, \{"line": [9, 5.5]\}, \{"curve": [9.5, 5.5, 9.5, 6]\},\par
+     \{"line": [9.5, 7.5]\}],\par
+    [\{"move": [9.5, 6]\}, \{"curve": [9.5, 5.5, 10.5, 5.5]\},\par
+     \{"line": [11.5, 5.5]\}],\par
+\par
+\par
+    [\{"move": [5.5, 5.5]\}, \{"line": [5.5, 7]\}, \{"curve": [5.5, 7.5, 6, 7.5]\},\par
+     \{"line": [7.5, 7.5]\}],\par
+    [\{"move": [6, 7.5]\}, \{"curve": [5.5, 7.5, 5.5, 8]\}, \{"line": [5.5, 9.5]\}],\par
+\par
+    [\{"move": [13.5, 5.5]\}, \{"line": [13.5, 7]\},\par
+     \{"curve": [13.5, 7.5, 13, 7.5]\}, \{"line": [11.5, 7.5]\}],\par
+    [\{"move": [13, 7.5]\}, \{"curve": [13.5, 7.5, 13.5, 8]\},\par
+     \{"line": [13.5, 9.5]\}],\par
+\par
+    [\{"move": [0, 11.5]\}, \{"line": [3, 11.5]\}, \{"curve": [3.5, 11.5, 3.5, 12]\},\par
+     \{"line": [3.5, 13]\}, \{"curve": [3.5, 13.5, 3, 13.5]\}, \{"line": [1, 13.5]\},\par
+     \{"curve": [0.5, 13.5, 0.5, 14]\}, \{"line": [0.5, 17]\},\par
+     \{"curve": [0.5, 17.5, 1, 17.5]\}, \{"line": [1.5, 17.5]\}],\par
+    [\{"move": [1, 17.5]\}, \{"curve": [0.5, 17.5, 0.5, 18]\}, \{"line": [0.5, 21]\},\par
+     \{"curve": [0.5, 21.5, 1, 21.5]\}, \{"line": [18, 21.5]\},\par
+     \{"curve": [18.5, 21.5, 18.5, 21]\}, \{"line": [18.5, 18]\},\par
+     \{"curve": [18.5, 17.5, 18, 17.5]\}, \{"line": [17.5, 17.5]\}],\par
+    [\{"move": [18, 17.5]\}, \{"curve": [18.5, 17.5, 18.5, 17]\},\par
+     \{"line": [18.5, 14]\}, \{"curve": [18.5, 13.5, 18, 13.5]\},\par
+     \{"line": [16, 13.5]\}, \{"curve": [15.5, 13.5, 15.5, 13]\},\par
+     \{"line": [15.5, 12]\}, \{"curve": [15.5, 11.5, 16, 11.5]\},\par
+     \{"line": [19, 11.5]\}],\par
+\par
+    [\{"move": [5.5, 11.5]\}, \{"line": [5.5, 13.5]\}],\par
+    [\{"move": [13.5, 11.5]\}, \{"line": [13.5, 13.5]\}],\par
+\par
+    [\{"move": [2.5, 15.5]\}, \{"line": [3, 15.5]\},\par
+     \{"curve": [3.5, 15.5, 3.5, 16]\}, \{"line": [3.5, 17.5]\}],\par
+    [\{"move": [16.5, 15.5]\}, \{"line": [16, 15.5]\},\par
+     \{"curve": [15.5, 15.5, 15.5, 16]\}, \{"line": [15.5, 17.5]\}],\par
+\par
+    [\{"move": [5.5, 15.5]\}, \{"line": [7.5, 15.5]\}],\par
+    [\{"move": [11.5, 15.5]\}, \{"line": [13.5, 15.5]\}],\par
+    \par
+    [\{"move": [2.5, 19.5]\}, \{"line": [5, 19.5]\},\par
+     \{"curve": [5.5, 19.5, 5.5, 19]\}, \{"line": [5.5, 17.5]\}],\par
+    [\{"move": [5.5, 19]\}, \{"curve": [5.5, 19.5, 6, 19.5]\},\par
+     \{"line": [7.5, 19.5]\}],\par
+\par
+    [\{"move": [11.5, 19.5]\}, \{"line": [13, 19.5]\},\par
+     \{"curve": [13.5, 19.5, 13.5, 19]\}, \{"line": [13.5, 17.5]\}],\par
+    [\{"move": [13.5, 19]\}, \{"curve": [13.5, 19.5, 14, 19.5]\},\par
+     \{"line": [16.5, 19.5]\}],\par
+\par
+    [\{"move": [7.5, 13.5]\}, \{"line": [9, 13.5]\},\par
+     \{"curve": [9.5, 13.5, 9.5, 14]\}, \{"line": [9.5, 15.5]\}],\par
+    [\{"move": [9.5, 14]\}, \{"curve": [9.5, 13.5, 10, 13.5]\},\par
+     \{"line": [11.5, 13.5]\}],\par
+\par
+    [\{"move": [7.5, 17.5]\}, \{"line": [9, 17.5]\},\par
+     \{"curve": [9.5, 17.5, 9.5, 18]\}, \{"line": [9.5, 19.5]\}],\par
+    [\{"move": [9.5, 18]\}, \{"curve": [9.5, 17.5, 10, 17.5]\},\par
+     \{"line": [11.5, 17.5]\}],\par
+\par
+    [\{"move": [8.5, 9.5]\}, \{"line": [8, 9.5]\}, \{"curve": [7.5, 9.5, 7.5, 10]\},\par
+     \{"line": [7.5, 11]\}, \{"curve": [7.5, 11.5, 8, 11.5]\},\par
+     \{"line": [11, 11.5]\}, \{"curve": [11.5, 11.5, 11.5, 11]\},\par
+     \{"line": [11.5, 10]\}, \{"curve": [11.5, 9.5, 11, 9.5]\},\par
+     \{"line": [10.5, 9.5]\}]\par
+];\par
+\par
+Object.prototype.clone = function () \{\par
+    var i, newObj = (this instanceof Array) ? [] : \{\};\par
+    for (i in this) \{\par
+        if (i === 'clone') \{\par
+            continue;\par
+        \}\par
+        if (this[i] && typeof this[i] === "object") \{\par
+            newObj[i] = this[i].clone();\par
+        \} else \{\par
+            newObj[i] = this[i];\par
+        \}\par
+    \}\par
+    return newObj;\par
+\};\par
+\par
+$(function()\{\par
+  var el = document.getElementById("pacman");\par
+\par
+  if (Modernizr.canvas && Modernizr.localstorage && \par
+      Modernizr.audio && (Modernizr.audio.ogg || Modernizr.audio.mp3)) \{\par
+    window.setTimeout(function () \{ PACMAN.init(el, "{{\field{\*\fldinst{HYPERLINK https://raw.githubusercontent.com/daleharvey/pacman/master/ }}{\fldrslt{https://raw.githubusercontent.com/daleharvey/pacman/master/\ul0\cf0}}}}\f0\fs22 "); \}, 0);\par
+  \} else \{ \par
+    el.innerHTML = "Sorry, needs a decent browser<br /><small>" + \par
+      "(firefox 3.6+, Chrome 4+, Opera 10+ and Safari 4+)</small>";\par
+  \}\par
+\});\par
+\par
+\par
+\tab </script>\par
+</body>\par
+</html>\par
+}
+ 
